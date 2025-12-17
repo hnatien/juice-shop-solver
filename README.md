@@ -14,7 +14,9 @@ Open your terminal (PowerShell or Command Prompt) in this directory and run the 
 
 ```powershell
 # 1. Create a virtual environment
-python -m venv .venv
+# 1. Create a virtual environment
+# Note: Use 'py' on Windows to ensure the official Python is used, avoiding conflicts with MinGW/Mysys64 versions.
+py -m venv .venv
 
 # 2. Activate the virtual environment
 .\.venv\Scripts\Activate.ps1
