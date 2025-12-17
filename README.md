@@ -1,35 +1,31 @@
 # OWASP Juice Shop Solver
 
-Python solver for OWASP Juice Shop challenges.
+This is an automated solver for the OWASP Juice Shop challenges.
 
-## Setup
+## Prerequisites
 
-```bash
+- [Python 3.8+](https://www.python.org/downloads/)
+- [Google Chrome](https://www.google.com/chrome/) (for browser-based challenges)
+- A running instance of OWASP Juice Shop (default: `http://localhost:3000`)
+
+## Setup & Run
+
+Open your terminal (PowerShell or Command Prompt) in this directory and run the following commands:
+
+```powershell
+# 1. Create a virtual environment
 python -m venv .venv
-.venv\Scripts\activate  # Windows
-pip install -r requirements.txt
-```
 
-## Usage
+# 2. Activate the virtual environment
+.\.venv\Scripts\Activate.ps1
+# OR (if using Command Prompt):
+# .\.venv\Scripts\activate.bat
 
-```bash
+# 3. Install dependencies
+pip install requests selenium pyyaml hashids
+
+# 4. Run the solver
 python solutions.py
 ```
 
-## Structure
-
-- `solutions.py` - Main entry point
-- `authentication.py` - Login/session management
-- `users.py` - User-related challenges
-- `products.py` - Product-related challenges  
-- `misc.py` - Miscellaneous challenges
-- `feedback.py` - Feedback challenges
-- `filehandling.py` - File upload challenges
-- `advanced.py` - Advanced challenges
-- `browser.py` - Browser automation challenges
-
-## Server Configuration
-
-Default server: `http://localhost:3000`
-
-Edit `solutions.py` to change server URL.
+The solver will automatically attempt to solve all implemented challenges against the target server.

