@@ -1,45 +1,35 @@
-# Juice Shop Solver
+# OWASP Juice Shop Solver
 
-* [Summary](#Summary)
-* [Target Audience](#Target Audience)
-* [Requirements](#Requirements)
-* [How To Run](#How To Run)
+Python solver for OWASP Juice Shop challenges.
 
-# Summary
+## Setup
 
-A collection of Python 2.7 functions for solving the various challenges in the 
-[OWASP Juice Shop](https://github.com/bkimminich/juice-shop), using 
-[Requests](http://docs.python-requests.org/en/master/) and for two challenges, 
-[Selenium 3.0](https://pypi.python.org/pypi/selenium). 100% complete for release 
-[2.18](https://github.com/bkimminich/juice-shop/releases/tag/v2.18.0), future versions may
-change the method and difficulty of any or all of the challenges.  
+```bash
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+```
 
-# Target Audience
+## Usage
 
-Testers interested in security testing and automation primarily. Assumes some familiarity with 
-security concepts and the Python programming language.  
+```bash
+python solutions.py
+```
 
-# Requirements
+## Structure
 
-- [OWASP Juice Shop](https://github.com/bkimminich/juice-shop) running on http://localhost:3000
-- Python 2.7.12
-- Python dependencies in requirements.txt
-- [Chromedriver](https://sites.google.com/a/chromium.org/chromedriver/downloads) available on your system PATH
+- `solutions.py` - Main entry point
+- `authentication.py` - Login/session management
+- `users.py` - User-related challenges
+- `products.py` - Product-related challenges  
+- `misc.py` - Miscellaneous challenges
+- `feedback.py` - Feedback challenges
+- `filehandling.py` - File upload challenges
+- `advanced.py` - Advanced challenges
+- `browser.py` - Browser automation challenges
 
-# How To Run
+## Server Configuration
 
-- Clone this repo
-- `cd` into the directory you created locally
-- `pip install -r requirements.txt`(Create a virtualenv first if you'd like)
-- Start the Juice Shop application
-- `./solutions.py`, then wait a minute
+Default server: `http://localhost:3000`
 
-# Why?
-
-I'm a software tester looking to improve my security and automation knowledge, seemed like a 
-fun way to kill two birds with one stone. I prefer working with APIs directly when I can, 
-so for simplicity the only challenges that require Selenium are ones that _must_ execute 
-some Javascript(Python, naturally, does not have a Javascript engine included.)
-
-The actual exploratory effort and techniques used to prepare this repository have been 
-written up in my blog [here](https://incognitjoe.github.io/hacking-the-juice-shop.html).
+Edit `solutions.py` to change server URL.

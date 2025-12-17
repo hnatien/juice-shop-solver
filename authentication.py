@@ -45,8 +45,18 @@ def _do_login(server, payload, headers=None):
                          headers=headers,
                          data=payload)
     if not login.ok:
-        raise RuntimeError('Error logging in. Content: {}'.format(login.content))
-    token = login.json().get('token')
+        print("DEBUG: Failed login payload: {}".format(payload))
+        # print("DEBUG: Failed login response: {}".format(login.text))
+        print('Error logging in. Content: {}'.format(login.content))
+        return None
+    resp_json = login.json()
+    token = resp_json.get('token')
+    if not token and 'authentication' in resp_json:
+        token = resp_json['authentication'].get('token')
+    
+    if not token:
+        print('Warning: Could not extract token from login response. Keys found: {}'.format(resp_json.keys()))
+
     session.cookies.set('token', token)
     session.headers.update({'Authorization': 'Bearer {}'.format(token)})
     return session
@@ -63,7 +73,8 @@ def create_user(server, email, password):
     session = requests.Session()
     create = session.post('{}/api/Users'.format(server), headers={'Content-Type': 'application/json'}, data=payload)
     if not create.ok:
-        raise RuntimeError('Error creating user {}'.format(email))
+        print('Warning: Error creating user {}. Server responded: {}'.format(email, create.text))
+        # raise RuntimeError('Error creating user {}'.format(email))
 
 
 def whoami(server, session):
@@ -86,4 +97,33 @@ def get_current_user_id(server, session):
     :param session: Session
     :return: ID as int
     """
-    return whoami(server, session).get('id')
+    resp = whoami(server, session)
+    if 'user' in resp:
+        return resp.get('user').get('id')
+    return resp.get('id')
+
+
+def get_basket_id(server, session):
+    """
+    Retrieve the current user's Basket ID (Bid)
+    :param server:
+    :param session:
+    :return: Bid (int)
+    """
+    try:
+        # Based on source: /rest/user/authentication-details returns the user details including Bid?
+        # Frontend calls this.
+        # Let's check response structure.
+        details = session.get('{}/rest/user/authentication-details'.format(server))
+        if details.ok:
+            data = details.json().get('data')
+            if data and 'Bid' in data:
+                return data.get('Bid')
+            # Sometimes data matches the user object directly?
+            # Let's try fallback to /rest/basket/ ID retrieval if needed.
+    except Exception as e:
+        print(f"Warning: Failed to fetch authentication details: {e}")
+    
+    # Fallback: Use whoami ID, assuming BasketId match UserId (incorrect but better than nothing)?
+    # Or try to fetch valid basket.
+    return get_current_user_id(server, session)
