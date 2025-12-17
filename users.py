@@ -656,17 +656,16 @@ def login_with_exposed_credentials(server):
 
 def solve_leaked_access_logs(server):
     """
-    Log in with the leaked credentials found in access logs.
-    User: J12934@juice-sh.op
-    Password: 0987654321
+    Log in with the leaked credentials of J12934.
+    Password found in source code: 0Y8rMnww$*9VFYE§59-!Fg1L6t&6lB
     """
-    print("Logging in with leaked access log credentials (J12934)..."),
+    print('Logging in with leaked access log credentials (J12934)...'),
     try:
-        session = get_session(server, 'J12934@juice-sh.op', '0987654321')
+        session = get_session(server, 'J12934@juice-sh.op', '0Y8rMnww$*9VFYE§59-!Fg1L6t&6lB')
         if session:
-            print("Success.")
+            print('Success.')
         else:
-            print("Failed.")
+            print('Failed.')
     except Exception as e: print(e)
 
 def solve_csrf_challenge(server):

